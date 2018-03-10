@@ -14,19 +14,19 @@ class Server:
         self.buffer = 1024
 
     def start(self):
-        self._server = udp_server = socket(AF_INET, SOCK_DGRAM)
-        udp_server.bind((self._hostname, self._port))
+        self._server = socket(AF_INET, SOCK_DGRAM)
+        self._server.bind((self._hostname, self._port))
 
         print('Deviation of server time: +- {0}'.format(self._deviation))
         print('Started server at {0}: {1}'.format(self._hostname, self._port))
 
         try:
             while True:
-                message, address = udp_server.recvfrom(self.buffer)
+                message, address = self._server.recvfrom(self.buffer)
                 self.treat_message(message, address)
         finally:
             print('The session was terminated!')
-            udp_server.close()
+            self._server.close()
             self._server = None
 
     def treat_message(self, message, address):

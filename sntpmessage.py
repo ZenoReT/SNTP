@@ -10,7 +10,8 @@ MIN_DATETIME = datetime.datetime(year=1968, month=1, day=1,
                                  hour=0, minute=0, second=0)
 MAX_DATETIME = datetime.datetime(year=2036, month=2, day=7,
                                  hour=6, minute=28, second=16)
-INITIAL_TIME = datetime.datetime(year=1900, month=1, day=1)
+INITIAL_TIME = datetime.datetime(year=1900, month=1, day=1,
+                                 hour=0, minute=0, second=0)
 
 
 class LeapIndicator(IntEnum):
@@ -185,15 +186,13 @@ class SNTPMessage:
         sec_fractions = int.from_bytes(bytes_array[4:8], byteorder="big",
                                        signed=False) / (2 ** 32)
         milliseconds = int(sec_fractions * 1000)
-        microseconds = (sec_fractions * 1000000) % 1000
 
         signed = bool(bytes_array[0] & 0b10000000)
         initial_time = INITIAL_TIME if signed else MAX_DATETIME
 
         return initial_time + datetime.timedelta(
             seconds=seconds,
-            milliseconds=milliseconds,
-            microseconds=microseconds)
+            milliseconds=milliseconds)
 
     @staticmethod
     def _datetime_to_bytes(time):
@@ -213,7 +212,7 @@ class SNTPMessage:
 
         seconds_int = int(delta_seconds)
         if start_is_max_datetime and seconds_int >= 0x80000000:
-            raise ValueError("Cannot encode dates that late")
+            raise ValueError("Cannot encode dates that late {0}".format(MAX_DATETIME))
 
         seconds_fraction = int((delta_seconds - seconds_int) * (2 ** 32))
 
