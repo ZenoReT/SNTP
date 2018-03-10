@@ -33,7 +33,7 @@ class Server:
         print('Received message from {0}\n'.format(address))
         try:
             receive_timestamp = datetime.datetime.utcnow() + self._deviation
-            SNTPMessage.from_bytes(message, [Mode.CLIENT])
+            SNTPMessage.initilize_message_from_bytes(message, Mode.CLIENT)
             answer = self.get_server_answer(receive_timestamp, message[40:48])
             self._server.sendto(answer, address)
         except ValueError as e:
@@ -56,6 +56,6 @@ class Server:
             reference_timestamp=current_time,
             origin_timestamp=None,
             receive_timestamp=receive_timestamp,
-            transmit_timestamp=current_time).to_bytes()
+            transmit_timestamp=current_time).get_bytes_from_message()
         result[24:32] = origin_timestamp_bytes
         return result

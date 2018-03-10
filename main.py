@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os.path
 import sys
 from sntp_server import Server
 
@@ -11,7 +10,7 @@ def main(config_file):
             deviation = int(config.readline())
     except IOError:
         sys.stderr.write('Not correct path or file is not supported {0}'
-                        .format(config_file))
+                         .format(config_file))
     try:
         server = Server(hostname='localhost', port=123, deviation=deviation)
         server.start()

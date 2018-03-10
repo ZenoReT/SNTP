@@ -63,7 +63,7 @@ class SNTPMessage:
         self.transmit_timestamp = transmit_timestamp
 
     @staticmethod
-    def from_bytes(bytes_array, expected_modes):
+    def initilize_message_from_bytes(bytes_array, expected_mode):
         message_length = len(bytes_array)
         if message_length not in SNTP_MESSAGE_LENGTHS:
             raise ValueError(
@@ -72,10 +72,10 @@ class SNTPMessage:
         leap_indicator = LeapIndicator((bytes_array[0] & 0b11000000) >> 6)
         version = (bytes_array[0] & 0b00100000) >> 3
         mode = Mode(bytes_array[0] & 0b00000111)
-        if mode not in expected_modes:
+        if mode != expected_mode:
             raise ValueError('Unexpected mode was found:'
                              ' expected: {0} actually: {1}'
-                             .format(expected_modes, mode))
+                             .format(expected_mode, mode))
         stratum = bytes_array[1]
         poll = bytes_array[2]
         precision = bytes_array[3]
@@ -109,7 +109,7 @@ class SNTPMessage:
             receive_timestamp,
             transmit_timestamp)
 
-    def to_bytes(self):
+    def get_bytes_from_message(self):
         message = bytearray(48)
         message[0] = (((self.leap_indicator & 0b11) << 6) |
                       ((self.version & 0b111) << 3) |
@@ -134,8 +134,8 @@ class SNTPMessage:
         result = 0
         start_from = 1 if signed else 0
         for i in range(start_from, fraction_start):
-            temp = 1 if (bytes_array[i // 8] & (1 << (7 - (i % 8)))) else 0
-            result = result * 2 + temp
+            if bytes_array[i // 8] & (1 << (7 - (i % 8))):
+                result += 2 ** (fraction_start - i - start_from - 1)
 
         fraction = 0.5
         for i in range(fraction_start, bites_count):
@@ -159,14 +159,14 @@ class SNTPMessage:
             raise ValueError(
                 'Fractions start is out of range: '
                 'bits count: {0} fraction start: {1}'
-                    .format(bits_count, fraction_start))
+                .format(bits_count, fraction_start))
 
         fraction_length = bits_count - fraction_start
         int_length = bits_count - fraction_length
         if signed:
             int_length -= 1
 
-        float_int_part = abs(float_num) & (2 << (int_length - 1)) - 1
+        float_int_part = abs(int(float_num)) & (2 << (int_length - 1)) - 1
 
         shifted = float_int_part * (2 ** fraction_length)
 
@@ -183,9 +183,9 @@ class SNTPMessage:
     @staticmethod
     def _datetime_from_bytes(bytes_array):
         seconds = int.from_bytes(bytes_array[0:4], byteorder="big", signed=False)
-        sec_fractions = int.from_bytes(bytes_array[4:8], byteorder="big",
-                                       signed=False) / (2 ** 32)
-        milliseconds = int(sec_fractions * 1000)
+        fraction = int.from_bytes(bytes_array[4:8], byteorder="big",
+                                  signed=False) / (2 ** 32)
+        milliseconds = int(fraction * 1000)
 
         signed = bool(bytes_array[0] & 0b10000000)
         initial_time = INITIAL_TIME if signed else MAX_DATETIME
@@ -210,11 +210,11 @@ class SNTPMessage:
         delta = time - initial_time
         delta_seconds = delta.total_seconds()
 
-        seconds_int = int(delta_seconds)
-        if start_is_max_datetime and seconds_int >= 0x80000000:
+        seconds = int(delta_seconds)
+        if start_is_max_datetime and seconds >= 0x80000000:
             raise ValueError("Cannot encode dates that late {0}".format(MAX_DATETIME))
 
-        seconds_fraction = int((delta_seconds - seconds_int) * (2 ** 32))
+        seconds_fraction = int((delta_seconds - seconds) * (2 ** 32))
 
-        return (seconds_int.to_bytes(4, byteorder='big', signed=False) +
+        return (seconds.to_bytes(4, byteorder='big', signed=False) +
                 seconds_fraction.to_bytes(4, byteorder='big', signed=False))
